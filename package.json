@@ -1,0 +1,10 @@
+{
+  "name": "ac130",
+  "version": "1.0.0",
+  "main": "ac130.js",
+  "author": "Pavel Anakin <pavidlos7@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^28.1.1"
+  }
+}
