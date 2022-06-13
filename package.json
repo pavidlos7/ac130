@@ -4,6 +4,7 @@
   "main": "ac130.js",
   "author": "Pavel Anakin <pavidlos7@gmail.com>",
   "license": "MIT",
+  "repository": "pavidlos7/ac130",
   "devDependencies": {
     "jest": "^28.1.1"
   }
