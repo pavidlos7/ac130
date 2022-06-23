@@ -46,6 +46,10 @@ describe('ac130 test', () => {
         deps: ['a'],
         fn: jest.fn((a) => a - 1),
       },
+      k: {
+        deps: ['c'],
+        fn: (c) => c,
+      },
       d: {
         deps: ['b'],
         fn: jest.fn((b) => b * 2),
@@ -77,6 +81,7 @@ describe('ac130 test', () => {
       f: 97,
       g: -1045,
       z: 11,
+      k: 9,
     })
     ;['b', 'c', 'd', 'e', 'f', 'g'].forEach((name) => {
       expect(defs[name].fn).toHaveBeenCalledTimes(1)
@@ -161,6 +166,75 @@ describe('ac130 test', () => {
     })
   })
 
+  it('should init properly 5', () => {
+    const defs = {
+      a0: {
+        value: 1,
+      },
+      b0: {
+        value: 2,
+      },
+      c0: {
+        value: 3,
+      },
+      d0: {
+        value: 4,
+      },
+      z0: {
+        value: 5,
+      },
+      z: {
+        deps: ['a', 'b', 'c', 'd'],
+        fn: (a, b, c, d) => a + b + c + d,
+      },
+      a: {
+        deps: ['a0'],
+        fn: (a0) => a0 * 2,
+      },
+      b: {
+        deps: ['b0', 'a'],
+        fn: (b0, a) => b0 + a * 2,
+      },
+      c: {
+        deps: ['c0', 'b'],
+        fn: (c0, b) => c0 + b * 2,
+      },
+      d: {
+        deps: ['d0', 'c'],
+        fn: (d0, c) => d0 + c * 2,
+      },
+      r: {
+        deps: ['r1', 'r2'],
+        fn: (r1, r2) => r1 * r2,
+      },
+      r1: {
+        deps: ['z'],
+        fn: (z) => z + 1,
+      },
+      r2: {
+        deps: ['z'],
+        fn: (z) => z - 50,
+      },
+    }
+    const ac = ac130(defs)
+
+    expect(ac.getValues()).toEqual({
+      a0: 1,
+      b0: 2,
+      c0: 3,
+      d0: 4,
+      z0: 5,
+      a: 2,
+      b: 6,
+      c: 15,
+      d: 34,
+      z: 57,
+      r1: 58,
+      r2: 7,
+      r: 406,
+    })
+  })
+
   it('should detect cycles 1', () => {
     const defs = {
       a: {
@@ -201,7 +275,21 @@ describe('ac130 test', () => {
     expect(() => ac130(defs)).toThrow(new Error('Cycle detected: a -> b -> c -> b'))
   })
 
-  it('should update properly', () => {
+  it('should detect cycles 3', () => {
+    const defs = {
+      a: {
+        value: null,
+      },
+      b: {
+        deps: ['a', 'b'],
+        fn: () => null,
+      },
+    }
+
+    expect(() => ac130(defs)).toThrow(new Error('Cycle detected: a -> b -> b'))
+  })
+
+  it('should update properly 1', () => {
     const defs = {
       a: {
         value: 10,
@@ -261,6 +349,175 @@ describe('ac130 test', () => {
     })
     ;['e', 'f', 'g'].forEach((name) => {
       expect(defs[name].fn).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('should update properly 2', () => {
+    const defs = {
+      a: {
+        value: 3,
+      },
+      b: {
+        value: 4,
+      },
+      c: {
+        deps: ['a'],
+        fn: jest.fn((a) => a + 1),
+      },
+      d: {
+        deps: ['a', 'b'],
+        fn: jest.fn((a, b) => a + b),
+      },
+      e: {
+        deps: ['b'],
+        fn: jest.fn((b) => b + 1),
+      },
+      f: {
+        deps: ['c', 'd', 'z'],
+        fn: jest.fn((c, d, z) => Math.floor((c + d + z) / 10)),
+      },
+      g: {
+        deps: ['d', 'e'],
+        fn: jest.fn((d, e) => Math.floor((d + e) / 10)),
+      },
+      h: {
+        deps: ['f', 'g'],
+        fn: jest.fn((f, g) => f * g),
+      },
+      z: {
+        value: 0,
+      },
+    }
+    const ac = ac130(defs)
+
+    jest.clearAllMocks()
+
+    const changed = ac.setValues({ a: 4, b: 4 })
+
+    expect(changed).toEqual({
+      a: 4,
+      c: 5,
+      d: 8,
+    })
+    expect(ac.getValues()).toEqual({
+      a: 4,
+      b: 4,
+      c: 5,
+      d: 8,
+      e: 5,
+      f: 1,
+      g: 1,
+      h: 1,
+      z: 0,
+    })
+
+    ;['e', 'h'].forEach((name) => {
+      expect(defs[name].fn).toHaveBeenCalledTimes(0)
+    })
+    ;['c', 'd', 'f', 'g'].forEach((name) => {
+      expect(defs[name].fn).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('should update properly 3', () => {
+    const defs = {
+      a: {
+        value: 3,
+      },
+      b: {
+        value: 4,
+      },
+      c: {
+        deps: ['a'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn((a) => ({
+          value: a + 1
+        })),
+      },
+      d: {
+        deps: ['a', 'b'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn((a, b) => ({
+          value: a + b,
+        })),
+      },
+      e: {
+        deps: ['b'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn((b) => ({
+          value: b + 1,
+        })),
+      },
+      f: {
+        deps: ['c', 'd', 'z'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn(({ value: c }, { value: d }, z) => ({
+          value: Math.floor((c + d + z) / 10),
+        })),
+      },
+      g: {
+        deps: ['d', 'e'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn(({ value: d }, { value: e }) => ({
+          value: Math.floor((d + e) / 10),
+        })),
+      },
+      h: {
+        deps: ['f', 'g'],
+        eq: jest.fn((prev, next) => prev.value === next.value),
+        fn: jest.fn(({ value: f }, { value: g }) => ({
+          value: f * g,
+        })),
+      },
+      z: {
+        value: 0,
+      },
+    }
+    const ac = ac130(defs)
+
+    jest.clearAllMocks()
+
+    const changed = ac.setValues({ a: 4, b: 4 })
+
+    expect(changed).toEqual({
+      a: 4,
+      c: {
+        value: 5,
+      },
+      d: {
+        value: 8,
+      },
+    })
+    expect(ac.getValues()).toEqual({
+      a: 4,
+      b: 4,
+      c: {
+        value: 5,
+      },
+      d: {
+        value: 8,
+      },
+      e: {
+        value: 5,
+      },
+      f: {
+        value: 1,
+      },
+      g: {
+        value: 1,
+      },
+      h: {
+        value: 1,
+      },
+      z: 0,
+    })
+    ;['e', 'h'].forEach((name) => {
+      expect(defs[name].fn).toHaveBeenCalledTimes(0)
+      expect(defs[name].eq).toHaveBeenCalledTimes(0)
+    })
+    ;['c', 'd', 'f', 'g'].forEach((name) => {
+      expect(defs[name].fn).toHaveBeenCalledTimes(1)
+      expect(defs[name].eq).toHaveBeenCalledTimes(1)
     })
   })
 
